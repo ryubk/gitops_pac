@@ -1,0 +1,18 @@
+fullnameOverride: "kiali"
+
+deployment:
+  image_name: quay.io/kiali/kiali
+  image_version: v1.79.0 # version like "v1.39" (see: https://quay.io/repository/kiali/kiali?tab=tags) or a digest hash
+  replicas: 1
+  resources:
+    requests:
+      cpu: "10m"
+      memory: "64Mi"
+    limits:
+      memory: "1Gi"
+
+external_services:
+  prometheus:
+    url: http://prometheus-server.default.svc.cluster.local
+    custom_metrics_url: http://prometheus-server.default.svc.cluster.local
+  
