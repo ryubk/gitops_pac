@@ -1,0 +1,234 @@
+certificate_arn: {}
+
+global:
+  hub: docker.io/istio
+  tag: 1.20.2
+
+  istioNamespace: istio-system
+
+  logging:
+    level: "default:info"
+  logAsJson: true
+
+  # pilotCertProvider: istiod
+  # jwtPolicy: third-party-jwt
+  proxy:
+    image: proxyv2
+    clusterDomain: "cluster.local"
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    logLevel: warning
+    componentLogLevel: "misc:error"
+    privileged: false
+    enableCoreDump: false
+    statusPort: 15020
+    readinessInitialDelaySeconds: 1
+    readinessPeriodSeconds: 2
+    readinessFailureThreshold: 30
+    includeIPRanges: "*"
+    excludeIPRanges: ""
+    excludeOutboundPorts: ""
+    excludeInboundPorts: ""
+    autoInject: enabled
+    tracer: "zipkin"
+    holdApplicationUntilProxyStarts: true
+  proxy_init:
+    image: proxyv2
+    resources:
+      requests:
+        cpu: 10m
+        memory: 10Mi
+      limits:
+        cpu: 10m
+        memory: 10Mi
+  # Specify image pull policy if default behavior isn't desired.
+  # Default behavior: latest images will be Always else IfNotPresent.
+  imagePullPolicy: ""
+  operatorManageWebhooks: false
+  tracer:
+    lightstep: {}
+    zipkin: {}
+    datadog: {}
+    stackdriver: {}
+  imagePullSecrets: []
+  oneNamespace: false
+  defaultNodeSelector: {}
+  configValidation: true
+  multiCluster:
+    enabled: false
+    clusterName: ""
+  omitSidecarInjectorConfigMap: false
+  network: ""
+  defaultResources:
+    requests:
+      cpu: 10m
+  defaultPodDisruptionBudget:
+    enabled: true
+  priorityClassName: ""
+  useMCP: false
+  sds:
+    token:
+      aud: istio-ca
+  sts:
+    servicePort: 0
+  meshNetworks: {}
+  mountMtlsCerts: false
+
+base:
+  base:
+    # Used for helm2 to add the CRDs to templates.
+    enableCRDTemplates: false
+
+    # Validation webhook configuration url
+    # For example: https://$remotePilotAddress:15017/validate
+    validationURL: ""
+
+istiod:
+  meshConfig:
+    accessLogFile: /dev/stdout
+    accessLogEncoding: JSON
+    # enableTracing: false
+    defaultConfig:
+      proxyMetadata: {}
+      tracing:
+        sampling: 50
+    # enablePrometheusMerge: true
+
+  pilot:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: "1"
+        memory: "1536Mi"
+    rollingMaxSurge: 100%
+    rollingMaxUnavailable: 25%
+    autoscaleEnabled: true
+    autoscaleMin: 1
+    autoscaleMax: 5
+    replicaCount: 1
+    # Can be a full hub/image:tag
+    image: pilot
+    traceSampling: 1.0
+    env: {}
+    cpu:
+      targetAverageUtilization: 60
+    nodeSelector: {}
+    # The following is used to limit how long a sidecar can be connected
+    # to a pilot. It balances out load across pilot instances at the cost of
+    # increasing system churn.
+    keepaliveMaxServerConnectionAge: 30m
+    # if protocol sniffing is enabled for outbound
+    enableProtocolSniffingForOutbound: true
+    # if protocol sniffing is enabled for inbound
+    enableProtocolSniffingForInbound: true
+    # Additional labels to apply to the deployment.
+    deploymentLabels: {}
+    # Install the mesh config map, generated from values.yaml.
+    # If false, pilot wil use default values (by default) or user-supplied values.
+    configMap: true
+  telemetry:
+    enabled: true
+    v2:
+      enabled: true
+      metadataExchange:
+        # Indicates whether to enable WebAssembly runtime for metadata exchange filter.
+        wasmEnabled: false
+      # Indicate if prometheus stats filter is enabled or not
+      prometheus:
+        enabled: true
+        # Indicates whether to enable WebAssembly runtime for stats filter.
+        wasmEnabled: false
+      # stackdriver filter settings.
+      stackdriver:
+        enabled: false
+        logging: false
+        monitoring: false
+        topology: false # deprecated. setting this to true will have no effect, as this option is no longer supported.
+        configOverride: {}
+
+istio-ingress:
+  gateways:
+    istio-ingressgateway:
+      name: istio-ingressgateway
+      labels:
+        istio: ingressgateway
+      type: NodePort
+      ports:
+      - name: status-port
+        port: 15021
+        targetPort: 15021
+        protocol: TCP
+      - name: http
+        port: 80
+        targetPort: 8080
+        nodePort: 30161
+        protocol: TCP
+      - name: https
+        port: 443
+        targetPort: 8080
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+      rollingMaxSurge: 100%
+      rollingMaxUnavailable: 25%
+      env: {}
+      autoscaleEnabled: true
+      autoscaleMin: 1  # 1 pod per node
+      autoscaleMax: 1  # 1 pod per node
+      secretVolumes:
+      - name: ingressgateway-certs
+        secretName: istio-ingressgateway-certs
+        mountPath: /etc/istio/ingressgateway-certs
+      - name: ingressgateway-ca-certs
+        secretName: istio-ingressgateway-ca-certs
+        mountPath: /etc/istio/ingressgateway-ca-certs
+
+      externalTrafficPolicy: "Local"
+
+istio-egress:
+  gateways:
+    istio-egressgateway:
+      name: istio-egressgateway
+      labels:
+        istio: egressgateway
+      type: ClusterIP
+      ports:
+      - name: http
+        port: 80
+        targetPort: 8080
+        protocol: TCP
+      - name: https
+        port: 443
+        targetPort: 8443
+        protocol: TCP
+      - name: tls
+        port: 15443
+        targetPort: 15442
+        protocol: TCP
+      env: {}
+      autoscaleEnabled: true
+      autoscaleMin: 1
+      autoscaleMax: 5
+      secretVolumes:
+      - name: egressgateway-certs
+        secretName: istio-egressgateway-certs
+        mountPath: /etc/istio/egressgateway-certs
+      - name: egressgateway-ca-certs
+        secretName: istio-egressgateway-ca-certs
+        mountPath: /etc/istio/egressgateway-ca-certs
+
+envoyfilter:
+  enabled: false
+  targetNamespace: istio-system

@@ -1,0 +1,29 @@
+{{ $gateway := index .Values "istio-ingress" "gateways" }}
+{{ $ingress := index $gateway "istio-ingressgateway" }}
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: istio-gateway
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+{{ $ingress.labels | toYaml | indent 4 }}
+  servers:
+  - port:
+      name: http
+      number: 80
+      protocol: HTTP
+    hosts:
+    - "*"
+  - port:
+      name: tcp
+      number: 18190
+      protocol: TCP
+    hosts:
+    - "*"
+  - port:
+      name: https
+      number: 443
+      protocol: TCP
+    hosts:
+    - "*"
