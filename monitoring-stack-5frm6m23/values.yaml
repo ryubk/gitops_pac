@@ -5,6 +5,15 @@ metrics-server:
   fullnameOverride: "metrics-server"
 
 prometheus:
+  # Scrape Configs
+  extraScrapeConfigs: |
+    # scrape flunt-bit metrics
+    - job_name: fluentbit
+      static_configs:
+        - targets:
+          - fluent-bit.logging.svc.cluster.local:2020
+      metrics_path: /api/v1/metrics/prometheus
+      
   server:
     fullnameOverride: prometheus-server
     image: 
