@@ -1,0 +1,171 @@
+metrics-server:
+  image:
+    repository: registry.k8s.io/metrics-server/metrics-server
+    tag: "v0.6.4"
+  fullnameOverride: "metrics-server"
+
+prometheus:
+  server:
+    fullnameOverride: prometheus-server
+    image: 
+      repository: quay.io/prometheus/prometheus
+      tag: v2.48.1
+  
+    global:
+      ## How frequently to scrape targets by default
+      scrape_interval: 10s
+
+    persistentVolume:
+      ## Prometheus server data Persistent Volume Storage Class
+      storageClass: "nfs-retain-app"  
+
+      ## Prometheus server data Persistent Volume size
+      size: 8Gi
+
+    resources: {}
+      # limits:
+      #   cpu: 500m
+      #   memory: 512Mi
+      # requests:
+      #   cpu: 500m
+      #   memory: 512Mi
+    
+    ## Prometheus data retention period (default if not specified is 15 days)
+    retention: "7d"
+
+  ## alertmanager sub-chart configurable values
+  alertmanager:
+    ## If false, alertmanager will not be installed
+    enabled: false
+
+  ## kube-state-metrics sub-chart configurable values
+  kube-state-metrics:
+    ## If false, kube-state-metrics sub-chart will not be installed
+    enabled: true
+
+    image:
+      registry: registry.k8s.io
+      repository: kube-state-metrics/kube-state-metrics
+      tag: v2.10.1
+
+    fullnameOverride: kube-state-metrics
+
+  ## prometheus-node-exporter sub-chart configurable values
+  prometheus-node-exporter:
+    ## If false, node-exporter will not be installed
+    enabled: true
+
+    image:
+      registry: quay.io
+      repository: prometheus/node-exporter
+      tag: v1.7.0
+
+    fullnameOverride: node-exporter
+
+  ## prometheus-pushgateway sub-chart configurable values
+  prometheus-pushgateway:
+    ## If false, pushgateway will not be installed
+    enabled: false
+
+prometheus-operator-crds:
+  crds:
+    annotations: {}
+
+grafana:
+  fullnameOverride: grafana
+  image: 
+    # -- The Docker registry
+    registry: docker.io
+    # -- Docker image repository
+    repository: grafana/grafana
+    # Overrides the Grafana image tag whose default is the chart appVersion
+  tag: 10.2.3
+  
+  ## Expose the grafana service to be accessed from outside the cluster (LoadBalancer service).
+  ## or access it from within the cluster (ClusterIP service). Set the service type and the port to serve it.
+  service:
+    port: 80
+  
+  testFramework:
+    enabled: true
+    image:
+      # -- The Docker registry
+      registry: docker.io
+      repository: bats/bats
+      tag: "v1.4.1"
+
+  downloadDashboardsImage:
+    # -- The Docker registry
+    registry: docker.io
+    repository: curlimages/culr
+    tag: 7.85.0
+
+  resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+  
+  ## Enable persistence using Persistent Volume Claims
+  persistence:
+    type: pvc
+    enabled: true
+    storageClassName: nfs-retain-app
+    size: 10Gi
+
+  initChownData:
+    ## If false, data ownership will not be reset at startup
+    enabled: true
+
+    ## initChownData container image
+    image:
+      # -- The Docker registry
+      registry: docker.io
+      repository: library/busybox
+      tag: "1.31.1"
+
+    resources: {}
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  
+  # Administrator credentials when not using an existing secret
+  adminUser: admin
+  adminPassword: admin
+
+  env:
+    GF_AUTH_ANONYMOUS_ENABLED: false
+    GF_AUTH_BASIC_ENABLED: false
+
+  ## Configure grafana datasources
+  datasources:
+    datasource.yaml:
+      apiVersion: 1
+      datasources:
+      - name: Prometheus
+        type: prometheus
+        url: http://prometheus-server
+        access: proxy
+        isDefault: true
+        jsonData:
+          timeInterval: 5s
+        editable: true
+  
+  # Sidecars that collect the configmaps with specified label and stores the include files them into the respective folders
+  sidecar:
+    image:
+      # -- The Docker registry
+      registry: quay.io
+      repository: kiwigrid/k8s-sidecar
+      tag: 1.25.2
+    resources: {}
+
+  grafana.ini:
+    server:
+      root_url: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+      serve_from_sub_path: true
