@@ -20,7 +20,7 @@ extraEnv: |
   - name: DB_VENDOR
     value: mariadb
   - name: DB_ADDR
-    value: <<mariadb_endpoint>>
+    value: rds-cta-dev-kr.ctu000e2w6z4.ap-northeast-2.rds.amazonaws.com
   - name: DB_PORT
     value: "3306"
   - name: DB_USER
