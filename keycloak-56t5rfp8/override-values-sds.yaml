@@ -1,0 +1,111 @@
+# Optionally override the fully qualified name
+fullnameOverride: "keycloak"
+
+image:
+  # The Keycloak image repository
+  repository: quay.io/keycloak/keycloak
+  # Overrides the Keycloak image tag whose default is the chart appVersion
+  tag: "17.0.1-legacy"
+
+# Pod resource requests and limits
+resources: {}
+  # requests:
+  #   cpu: "500m"
+  #   memory: "1024Mi"
+  # limits:
+  #   cpu: "500m"
+  #   memory: "1024Mi"
+
+extraEnv: |
+  - name: DB_VENDOR
+    value: mariadb
+  - name: DB_ADDR
+    value: <<mariadb_endpoint>>
+  - name: DB_PORT
+    value: "3306"
+  - name: DB_USER
+    value: admin
+  - name: DB_PASSWORD
+    value: password00!
+  - name: KEYCLOAK_USER
+    value: keycloak
+  - name: KEYCLOAK_PASSWORD
+    value: keycloak
+  - name: KC_PROXY
+    value: passthrough
+  - name: KC_HOSTNAME_STRICT_HTTPS
+    value: 'false'
+  - name: KC_METRICS_ENABLED
+    value: 'true'
+  - name: KEYCLOAK_STATISTICS
+    value: all
+
+contextPath: identity/connect/auth
+
+# Startup scripts to run before Keycloak starts up
+startupScripts:
+  # WildFly CLI script for configuring the node-identifier
+  keycloak.cli: |
+    {{- .Files.Get "scripts/keycloak.cli" }}
+  contextPath.cli: |
+    embed-server --server-config=standalone-ha.xml --std-out=echo
+    batch
+    {{- if eq .Values.contextPath "identity/connect/auth" }}
+    /subsystem=keycloak-server/:write-attribute(name=web-context,value={{ if eq .Values.contextPath "" }}/{{ else }}{{ .Values.contextPath }}{{ end }})
+    {{- else }}
+    /subsystem=undertow/server=default-server/host=default-host:write-attribute(name=default-web-module,value=keycloak-server.war)
+    {{- end }}
+    run-batch
+    stop-embedded-server
+
+# Liveness probe configuration
+livenessProbe: |
+  httpGet:
+    path: /identity/connect/auth/
+    port: http
+  initialDelaySeconds: 0
+  timeoutSeconds: 5
+
+# Readiness probe configuration
+readinessProbe: |
+  httpGet:
+    path: /identity/connect/auth/realms/master
+    port: http
+  initialDelaySeconds: 30
+  timeoutSeconds: 1
+
+# Startup probe configuration
+startupProbe: |
+  httpGet:
+    path: /identity/connect/auth/
+    port: http
+  initialDelaySeconds: 30
+  timeoutSeconds: 1
+  failureThreshold: 60
+  periodSeconds: 5
+
+pgchecker:
+  image:
+    # Docker image used to check Postgresql readiness at startup
+    repository: docker.io/busybox
+    # Image tag for the pgchecker image
+    tag: 1.32
+
+postgresql:
+  enabled: false
+
+  ## @param fullnameOverride String to fully override common.names.fullname template
+  fullnameOverride: keycloak-postgresql
+
+  global:
+    storageClass: "nfs-retain-app"
+    postgresql:
+      postgresqlPostgresPassword: keycloak
+
+  ## Init containers parameters:
+  ## volumePermissions: Change the owner of the persist volume mountpoint to RunAsUser:fsGroup
+  ##
+  volumePermissions:
+    ## @param volumePermissions.enabled Enable init container that changes volume permissions in the data directory (for cases where the default k8s `runAsUser` and `fsUser` values do not work)
+    ##
+    enabled: true
