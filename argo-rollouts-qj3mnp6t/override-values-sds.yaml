@@ -1,0 +1,44 @@
+controller:
+  # -- The number of controller pods to run
+  replicas: 1
+  image:
+    # -- Registry to use
+    registry: quay.io
+    # -- Repository to use
+    repository: argoproj/argo-rollouts
+    # -- Overrides the image tag (default is the chart appVersion)
+    tag: ""
+
+  # -- Resource limits and requests for the controller pods.
+  resources: {}
+  #  limits:
+  #    cpu: 100m
+  #    memory: 128Mi
+  #  requests:
+  #    cpu: 50m
+  #    memory: 64Mi
+
+  metrics:
+    # -- Deploy metrics service
+    enabled: false
+ 
+dashboard:
+  # -- Deploy dashboard server
+  enabled: true
+  # -- Set cluster role to readonly
+  readonly: false
+
+  # -- The number of dashboard pods to run
+  replicas: 1
+  image:
+    # -- Registry to use
+    registry: quay.io
+    # --  Repository to use
+    repository: argoproj/kubectl-argo-rollouts
+    # -- Overrides the image tag (default is the chart appVersion)
+    tag: ""
+    # -- Image pull policy
+    pullPolicy: IfNotPresent
+
+  # -- Resource limits and requests for the dashboard pods.
+  resources: {}
